@@ -1,0 +1,26 @@
+name: Build OpenWrt
+
+on:
+  push:
+    tags:
+      - 'v*'  # 推送 v 开头 tag 才触发构建发布，比如 v25.12.6
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      # 这里放你的编译步骤，make download / make -j 之类
+      - name: Show tag name
+        run: echo ${{ github.ref_name }}
+
+      - name: Upload Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
