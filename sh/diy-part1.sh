@@ -20,9 +20,9 @@
 # 已按需求移除 openclash 源
 # echo "src-git openclash https://github.com/vernesong/OpenClash.git;master" >> "feeds.conf.default"
 
-# 新增 passwall2 源
-echo "src-git passwall2 https://github.com/xiaorouji/openwrt-passwall2.git" >> "feeds.conf.default"
-echo "src-git passwall_packages https://github.com/xiaorouji/openwrt-passwall.git;packages" >> "feeds.conf.default"
+# 新增 passwall2 源（2026-11 迁移至 Openwrt-Passwall 组织）
+echo "src-git passwall2 https://github.com/Openwrt-Passwall/openwrt-passwall2.git;main" >> "feeds.conf.default"
+echo "src-git passwall_packages https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git" >> "feeds.conf.default"
 
 # 主题
 echo "src-git Argon https://github.com/jerrykuku/luci-theme-argon.git;master" >> "feeds.conf.default"
