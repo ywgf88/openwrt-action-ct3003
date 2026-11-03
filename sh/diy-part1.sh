@@ -15,8 +15,15 @@
 
 # Add a feed source
 #echo 'src-git helloworld https://github.com/fw876/helloworld' >>feeds.conf.default
-#echo 'src-git passwall https://github.com/xiaorouji/openwrt-passwall' >>feeds.conf.default
 #echo "src-git nikki https://github.com/nikkinikki-org/OpenWrt-nikki.git;main" >> "feeds.conf.default"
-echo "src-git openclash https://github.com/vernesong/OpenClash.git;master" >> "feeds.conf.default"
+
+# 已按需求移除 openclash 源
+# echo "src-git openclash https://github.com/vernesong/OpenClash.git;master" >> "feeds.conf.default"
+
+# 新增 passwall2 源
+echo "src-git passwall2 https://github.com/xiaorouji/openwrt-passwall2.git" >> "feeds.conf.default"
+echo "src-git passwall_packages https://github.com/xiaorouji/openwrt-passwall.git;packages" >> "feeds.conf.default"
+
+# 主题
 echo "src-git Argon https://github.com/jerrykuku/luci-theme-argon.git;master" >> "feeds.conf.default"
 echo "src-git Argonconfig https://github.com/jerrykuku/luci-app-argon-config.git;master" >> "feeds.conf.default"
