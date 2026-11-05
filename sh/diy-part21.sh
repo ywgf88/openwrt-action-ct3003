@@ -35,3 +35,20 @@ CONFIG_PACKAGE_v2ray-geosite=y
 CFGEOF
 
 #sed -i 's/--set=llvm\.download-ci-llvm=true/--set=llvm.download-ci-llvm=false/' feeds/packages/lang/rust/Makefile
+
+# ===== 定制：固件默认仅 IPv4 =====
+# 注入 uci-defaults 脚本，首次开机时删除 wan6、关闭 RA/DHCPv6、过滤 AAAA 记录、禁用 odhcpd 自启
+mkdir -p package/base-files/files/etc/uci-defaults
+cat > package/base-files/files/etc/uci-defaults/99-default-ipv4 <<'EOF'
+#!/bin/sh
+uci -q delete network.wan6
+uci -q commit network
+uci -q set dhcp.lan.ra='disabled'
+uci -q set dhcp.lan.dhcpv6='disabled'
+uci -q set dhcp.lan.dnsmasq.filter_aaaa='1'
+uci -q set dhcp.lan.dnsmasq.filter_a='1'
+uci -q commit dhcp
+/etc/init.d/odhcpd disable 2>/dev/null
+exit 0
+EOF
+# ===== 定制结束 =====
