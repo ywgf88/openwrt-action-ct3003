@@ -16,6 +16,10 @@ on:
   repository_dispatch:
   workflow_dispatch:
 
+# 显式授予 GITHUB_TOKEN 写入权限（创建/上传 Release 需要）
+permissions:
+  contents: write
+
 env:
   REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-24.10
   REPO_BRANCH: openwrt-24.10-6.6
@@ -149,12 +153,14 @@ jobs:
 
     - name: Delete workflow runs
       uses: Mattraks/delete-workflow-runs@main
+      continue-on-error: true   # 清理步骤失败不应导致整个构建标记为失败
       with:
         retain_days: 0
         keep_minimum_runs: 2
 
     - name: Remove old Releases
       uses: dev-drprasad/delete-older-releases@master
+      continue-on-error: true   # 仓库开启 Immutable Releases 时删除旧资产会报错，清理失败不影响构建
       if: env.UPLOAD_RELEASE == 'true' && !cancelled()
       with:
         keep_latest: 5
