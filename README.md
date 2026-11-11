@@ -45,12 +45,28 @@
 **网络 / 路由增强**
 
 - `luci-app-turboacc-mtk`（MTK 硬件加速）、`luci-app-eqos-mtk`（MTK 限速）、`luci-app-mtwifi-cfg`（MTK WiFi 配置）
-- `luci-app-upnp` + `miniupnpd-nftables`（25.12 系列）
+- `luci-app-upnp` + `miniupnpd-nftables`（25.12 三台原有，24.10 的 CT3003 / ASR3000 本次补上）
 - `knot-resolver`（dnstap）DNS 组件
+
+**家庭场景工具（五套 config 统一补齐）**
+
+| 插件 | 作用 | 说明 |
+| --- | --- | --- |
+| `luci-app-ddns` + `ddns-scripts` | 动态域名 | 宽带无固定公网 IP 时远程回家的前提 |
+| `luci-app-wol` + `etherwake` | 网络唤醒 | 远程开启 NAS 或台式机 |
+| `luci-proto-wireguard` + `kmod-wireguard` + `wireguard-tools` | WireGuard 远程接入 | ASR3000 与 CT3003-24.10 原本已带内核模块，本次补上面板与工具 |
+| `luci-app-commands` | 网页执行命令 | 调试与脚本入口 |
+| `luci-app-nlbwmon` + `nlbwmon` | 按设备统计流量 | 仅 25.12 三台；24.10 的 CT3003 与 ASR3000 已有 `luci-app-wrtbwmon`，不重复装 |
+| `luci-app-upnp` + `miniupnpd-nftables` | UPnP / NAT-PMP 端口映射 | 本次为 ASR3000 与 CT3003-24.10 补上 |
+
+以上插件均带 `luci-i18n-*-zh-cn` 中文语言包（i18n 符号依赖父包可见，故以显式 `CONFIG_PACKAGE_luci-i18n-*-zh-cn=y` 写入）。
+
+> 未加 `luci-app-sqm`：本仓库用 MTK 的 `luci-app-eqos-mtk` 做限速，SQM 与它都改写 `tc` 规则，两套同时启用会互相覆盖、效果不稳定。确实需要 cake 算法压制缓冲膨胀时，先关 eQoS 再单独启用 SQM。
+
 
 **运维 / 调试**
 
-- 24.10 CT3003：`luci-app-ttyd`、`luci-app-wrtbwmon`（流量统计）
+- 24.10 系列（CT3003 / ASR3000）：`luci-app-ttyd`、`luci-app-wrtbwmon`（实时流量面板）
 - 25.12 系列：`zram-swap`、`ethtool`、`tcpdump`、`iw`、`ubi-utils`、`uboot-envtools`
 - 全系列均带 `bash`、`nano`、`htop`、`unzip`、`curl`
 
