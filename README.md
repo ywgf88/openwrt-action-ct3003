@@ -1,14 +1,16 @@
 # openwrt-action-ct3003 · ImmortalWrt mt798x 自用固件
 
-自用的 ImmortalWrt（mt798x 分支）GitHub Actions 编译仓库，主设备为 **Cetron CT3003**，同时附带 360T7、RAX3000M、ASR3000 的编译流水线。固件默认只有 IPv4、默认主题 Argon、代理插件按分支区别配置，成品发布在本仓库 [Releases](../../releases)。
+自用的 ImmortalWrt（mt798x 分支）GitHub Actions 编译仓库，主设备为 **Cetron CT3003**，同时附带 360T7、RAX3000M 的编译流水线。固件默认只有 IPv4、默认主题 Argon、代理统一用 PassWall2，成品发布在本仓库 [Releases](../../releases)。
+
+> 已移除 24.10 支线（`padavanonly/immortalwrt-mt798x-24.10`，含原 ASR3000 流水线），本仓库现在只编译 **25.12**（`chasey-dev/immortalwrt-mt798x-rebase`，Linux 6.12 · GCC 14.3 · apk）。
 
 ## CT3003 固件概览
 
 | 项目 | 说明 |
 | --- | --- |
 | 设备名称 | **Cetron CT3003**（MT7981 平台），编译目标 `CONFIG_TARGET_mediatek_filogic_DEVICE_cetron_ct3003-ubootmod` |
-| 固件分支 | 两条并行：<br>**25.12** — `chasey-dev/immortalwrt-mt798x-rebase` @ `25.12`，Linux 6.12 · GCC 14.3 · **apk**<br>**24.10** — `padavanonly/immortalwrt-mt798x-24.10` @ `openwrt-24.10-6.6`，Linux 6.6 · GCC 13.3 · **opkg** |
-| 配置文件 | 25.12：`config/ct3003-25.12.config`　24.10：`config/ct3003.config` |
+| 固件分支 | `chasey-dev/immortalwrt-mt798x-rebase` @ `25.12`，Linux 6.12 · GCC 14.3 · **apk** |
+| 配置文件 | `config/ct3003-25.12.config` |
 | 默认管理地址 | **192.168.10.1**，用户名 `root`，默认**空密码**（首次登录请立即设置） |
 | 默认主题 | **Argon**（`jerrykuku/luci-theme-argon` + `luci-app-argon-config`）；`luci-theme-bootstrap` 也在固件内，可后台切换 |
 | 默认网络 | 仅 IPv4：删 `wan6`、关 RA/DHCPv6、DNS 过滤 A/AAAA、`odhcpd` 不自启 |
@@ -22,21 +24,17 @@
 | Workflow | 源码 | 分支 | 配置文件 | 设备 target | 包管理 |
 | --- | --- | --- | --- | --- | --- |
 | `ct3003 25.12` | chasey-dev/immortalwrt-mt798x-rebase | `25.12` | `config/ct3003-25.12.config` | `cetron_ct3003-ubootmod` | apk |
-| `ct3003 24.10` | padavanonly/immortalwrt-mt798x-24.10 | `openwrt-24.10-6.6` | `config/ct3003.config` | `cetron_ct3003-ubootmod` | opkg |
 | `360t7 25.12` | chasey-dev/immortalwrt-mt798x-rebase | `25.12` | `config/360t7-25.12.config` | `qihoo_360t7` | apk |
 | `rax3000m 25.12` | chasey-dev/immortalwrt-mt798x-rebase | `25.12` | `config/rax3000m-25.12.config` | `cmcc_rax3000m` | apk |
-| `asr3000` | padavanonly/immortalwrt-mt798x-24.10 | `openwrt-24.10-6.6` | `config/asr3000.config` | `abt_asr3000` | opkg |
-| `Update Checker` | padavanonly/immortalwrt-mt798x-6.6 | `openwrt-24.10-6.6` | — | 比对上游 commit 后 `repository_dispatch`（定时任务已注释，需手动运行） | — |
+| `Update Checker` | chasey-dev/immortalwrt-mt798x-rebase | `25.12` | — | 比对上游 commit 后 `repository_dispatch`（定时任务已注释，需手动运行） | — |
 
-25.12 系列由 `sh/diy-part21.sh` 定制，24.10 系列由 `sh/diy-part2.sh` 定制，两者共用 `sh/diy-part1.sh` 添加插件源。
+三条编译流水线共用 `sh/diy-part1.sh` 添加插件源、`sh/diy-part21.sh` 做定制。
 
 ## 已集成插件
 
-**代理 / 分流（按分支不同）**
+**代理 / 分流**
 
-- 25.12（`diy-part21.sh` 追加）：`luci-app-passwall2` + `luci-i18n-passwall2-zh-cn`，内核带 `xray-core`、`sing-box`、`v2ray-geoip`、`v2ray-geosite`；OpenClash 已显式关闭
-- 24.10（CT3003）：`luci-app-openclash`，并配套 `iptables-nft` / `ip6tables-nft` / `xtables-nft` / `ipset` / `wget-ssl` 等依赖
-- ASR3000（24.10）额外带 `luci-app-adguardhome`（源码克隆自 `sirpdboy/luci-app-adguardhome`）
+- `sh/diy-part21.sh` 追加：`luci-app-passwall2` + `luci-i18n-passwall2-zh-cn`，内核带 `xray-core`、`sing-box`、`v2ray-geoip`、`v2ray-geosite`；OpenClash 已显式关闭
 
 **主题**
 
@@ -45,48 +43,48 @@
 **网络 / 路由增强**
 
 - `luci-app-turboacc-mtk`（MTK 硬件加速）、`luci-app-eqos-mtk`（MTK 限速）、`luci-app-mtwifi-cfg`（MTK WiFi 配置）
-- `luci-app-upnp` + `miniupnpd-nftables`（25.12 三台原有，24.10 的 CT3003 / ASR3000 本次补上）
+- `luci-app-upnp` + `miniupnpd-nftables`
 - `knot-resolver`（dnstap）DNS 组件
 
-**家庭场景工具（五套 config 统一补齐）**
+**家庭场景工具（三套 config 统一启用）**
 
 | 插件 | 作用 | 说明 |
 | --- | --- | --- |
 | `luci-app-ddns` + `ddns-scripts` | 动态域名 | 宽带无固定公网 IP 时远程回家的前提 |
 | `luci-app-wol` + `etherwake` | 网络唤醒 | 远程开启 NAS 或台式机 |
-| `luci-proto-wireguard` + `kmod-wireguard` + `wireguard-tools` | WireGuard 远程接入 | ASR3000 与 CT3003-24.10 原本已带内核模块，本次补上面板与工具 |
+| `luci-proto-wireguard` + `kmod-wireguard` + `wireguard-tools` | WireGuard 远程接入 | |
 | `luci-app-commands` | 网页执行命令 | 调试与脚本入口 |
-| `luci-app-nlbwmon` + `nlbwmon` | 按设备统计流量 | 仅 25.12 三台；24.10 的 CT3003 与 ASR3000 已有 `luci-app-wrtbwmon`，不重复装 |
-| `luci-app-upnp` + `miniupnpd-nftables` | UPnP / NAT-PMP 端口映射 | 本次为 ASR3000 与 CT3003-24.10 补上 |
+| `luci-app-nlbwmon` + `nlbwmon` | 按设备统计流量 | |
+| `luci-app-upnp` + `miniupnpd-nftables` | UPnP / NAT-PMP 端口映射 | |
 
 以上插件均带 `luci-i18n-*-zh-cn` 中文语言包（i18n 符号依赖父包可见，故以显式 `CONFIG_PACKAGE_luci-i18n-*-zh-cn=y` 写入）。
 
 > 未加 `luci-app-sqm`：本仓库用 MTK 的 `luci-app-eqos-mtk` 做限速，SQM 与它都改写 `tc` 规则，两套同时启用会互相覆盖、效果不稳定。确实需要 cake 算法压制缓冲膨胀时，先关 eQoS 再单独启用 SQM。
 
-
 **运维 / 调试**
 
-- 24.10 系列（CT3003 / ASR3000）：`luci-app-ttyd`、`luci-app-wrtbwmon`（实时流量面板）
-- 25.12 系列：`zram-swap`、`ethtool`、`tcpdump`、`iw`、`ubi-utils`、`uboot-envtools`
-- 全系列均带 `bash`、`nano`、`htop`、`unzip`、`curl`
+- `zram-swap`、`ethtool`、`tcpdump`、`iw`、`ubi-utils`、`uboot-envtools`
+- 三套均带 `bash`、`nano`、`htop`、`unzip`、`curl`
 
 **引导 / 固件工具**
 
 - `u-boot-mt7981_cetron_ct3003`、`trusted-firmware-a-mt7981-*`、`fitblk`、`fit-check-sign`
 
-> 配置里 `luci-app-passwall_INCLUDE_*` 这几项是上游模板残留，`luci-app-passwall` 主体包并未启用，不必按它判断固件里有 Passwall（25.12 实际装的是 Passwall2）。
+> 配置里 `luci-app-passwall_INCLUDE_*` 这几项是上游模板残留，`luci-app-passwall` 主体包并未启用，不必按它判断固件里有 Passwall（实际装的是 Passwall2）。
 
 ## 定制点
 
-| 项目 | 25.12（`sh/diy-part21.sh`） | 24.10（`sh/diy-part2.sh`） |
-| --- | --- | --- |
-| 默认 IP | `192.168.1.1` → `192.168.10.1` | `192.168.6.1` → `192.168.10.1` |
-| 代理 | 关闭 `luci-app-openclash`，追加 Passwall2 与内核 | 保留 OpenClash |
-| 附加 | 克隆 `luci-app-adguardhome` 源码 | 同左 |
+均由 `sh/diy-part21.sh` 完成：
+
+| 项目 | 内容 |
+| --- | --- |
+| 默认 IP | `192.168.1.1` → `192.168.10.1` |
+| 代理 | 关闭 `luci-app-openclash`，追加 Passwall2 与内核 |
+| 附加 | 克隆 `luci-app-adguardhome` 源码 |
 
 默认主题的两处 `sed`（替换 `feeds/luci/collections/luci/Makefile` 里的 bootstrap）都是注释状态，Argon 实际由主题包自带的 `root/etc/uci-defaults/30_luci-theme-argon` 在首启写入 `luci.main.mediaurlbase=/luci-static/argon` 生效。
 
-两个 DIY 脚本都会注入同一份首启脚本，把固件锁成纯 IPv4：
+`diy-part21.sh` 还会注入一份首启脚本，把固件锁成纯 IPv4：
 
 ```sh
 #!/bin/sh
@@ -101,14 +99,14 @@ uci -q commit dhcp
 exit 0
 ```
 
-改默认 IP 时注意区分上游基线：25.12 上游 LAN 是 `192.168.1.1`，24.10 上游是 `192.168.6.1`（部分机型 `192.168.110.1`），sed 目标写错会静默失效。
+改默认 IP 时注意上游基线：25.12 上游 LAN 是 `192.168.1.1`，sed 目标写错会静默失效。
 
 ## 目录结构
 
 ```
-.github/workflows/   ct3003-25.12.yml / ct3003.yml / 360t7-25.12.yml / rax3000m-25.12.yml / asr3000.yml / update-checker.yml
-config/             五套 .config（设备 target 与插件清单都在这里）
-sh/                 diy-part1.sh（插件源）/ diy-part2.sh（24.10 定制）/ diy-part21.sh（25.12 定制）
+.github/workflows/   ct3003-25.12.yml / 360t7-25.12.yml / rax3000m-25.12.yml / update-checker.yml
+config/              三套 25.12 .config（设备 target 与插件清单都在这里）
+sh/                  diy-part1.sh（插件源）/ diy-part21.sh（25.12 定制）
 ```
 
 ## 使用方法
