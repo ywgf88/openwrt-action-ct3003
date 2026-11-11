@@ -13,8 +13,9 @@
 name: Update Checker
 
 env:
-  REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-6.6
-  REPO_BRANCH: openwrt-24.10-6.6
+  # 已移除 24.10 支线，检测目标改为 25.12 上游
+  REPO_URL: https://github.com/chasey-dev/immortalwrt-mt798x-rebase
+  REPO_BRANCH: 25.12
 
 on:
   workflow_dispatch:
