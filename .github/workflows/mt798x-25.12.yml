@@ -1,0 +1,176 @@
+#
+# https://github.com/P3TERX/Actions-OpenWrt
+#
+# 三设备合并编译（MULTI_PROFILE）：Cetron CT3003 (ubootmod) + Qihoo 360T7 + CMCC RAX3000M
+# 优化点：
+#   1) 一份 config 编三台，共用 toolchain/kernel 构建结果
+#   2) git clone 用 --depth 1 --single-branch
+#   3) apt 依赖只装必要项
+#   4) make download 并行提到 16
+#
+
+name: mt798x 25.12 三设备
+
+on:
+  repository_dispatch:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  REPO_URL: https://github.com/chasey-dev/immortalwrt-mt798x-rebase
+  REPO_BRANCH: 25.12
+  FEEDS_CONF: feeds.conf.default
+  CONFIG_FILE: config/mt798x-25.12.config
+  DIY_P1_SH: sh/diy-part1.sh
+  DIY_P2_SH: sh/diy-part21.sh
+  UPLOAD_BIN_DIR: false
+  UPLOAD_FIRMWARE: true
+  UPLOAD_RELEASE: true
+  TZ: Asia/Shanghai
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@main
+
+    - name: Initialization environment
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+        sudo docker image prune --all --force
+        sudo -E apt-get -qq update
+        sudo -E apt-get -qq install build-essential autoconf automake autopoint binutils bison bc cpio curl device-tree-compiler flex gawk gcc-multilib g++-multilib gettext git haveged lib32gcc-s1 libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses-dev libpython3-dev libreadline-dev libssl-dev libtool libz-dev patch pkgconf python3 python3-pip python3-ply python3-pyelftools re2c rsync scons squashfs-tools subversion swig texinfo unzip wget zstd lz4
+        sudo -E apt-get -qq autoremove --purge
+        sudo -E apt-get -qq clean
+        sudo timedatectl set-timezone "$TZ"
+        sudo mkdir -p /workdir
+        sudo chown $USER:$GROUPS /workdir
+
+    - name: Clone source code
+      working-directory: /workdir
+      run: |
+        df -hT $PWD
+        git clone --depth 1 --single-branch -b $REPO_BRANCH $REPO_URL openwrt
+        ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
+
+    - name: Load custom feeds
+      run: |
+        [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
+        chmod +x $DIY_P1_SH
+        cd openwrt
+        $GITHUB_WORKSPACE/$DIY_P1_SH
+
+    - name: Update feeds
+      run: cd openwrt && ./scripts/feeds update -a
+
+    - name: Install feeds
+      run: cd openwrt && ./scripts/feeds install -a
+
+    - name: Load custom configuration
+      run: |
+        [ -e files ] && mv files openwrt/files
+        [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
+        chmod +x $DIY_P2_SH
+        cd openwrt
+        $GITHUB_WORKSPACE/$DIY_P2_SH
+
+    - name: Validate target config
+      run: |
+        set -e
+        cd openwrt
+        # Windows 上传的 .config 可能带 CRLF，Kconfig 会整行跳过 CONFIG
+        sed -i 's/\r$//' .config
+        make defconfig
+        echo "==== defconfig 后实际选中的设备项 ===="
+        grep '^CONFIG_TARGET.*DEVICE.*=y' .config || true
+        echo "==== 多设备与三设备硬检查 ===="
+        grep -q '^CONFIG_TARGET_MULTI_PROFILE=y' .config || { echo "::error::MULTI_PROFILE 未开启"; exit 1; }
+        for dev in cetron_ct3003-ubootmod qihoo_360t7 cmcc_rax3000m; do
+          grep -q "^CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_${dev}=y" .config \
+            || { echo "::error::未选中设备 ${dev}"; exit 1; }
+        done
+
+    - name: Download package
+      id: package
+      run: |
+        cd openwrt
+        make download -j16
+        find dl -size -1024c -exec ls -l {} \;
+        find dl -size -1024c -exec rm -f {} \;
+
+    - name: Compile the firmware
+      id: compile
+      run: |
+        cd openwrt
+        echo -e "$(nproc) thread compile"
+        make -j$(nproc) || make -j1 || make -j1 V=s
+        echo "status=success" >> $GITHUB_OUTPUT
+        echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
+
+    - name: Check images
+      run: |
+        cd openwrt/bin/targets/mediatek/filogic
+        ls -l
+        missing=""
+        for dev in cetron_ct3003-ubootmod qihoo_360t7 cmcc_rax3000m; do
+          ls *${dev}*sysupgrade* >/dev/null 2>&1 || missing="$missing ${dev}"
+        done
+        [ -z "$missing" ] || { echo "::error::缺少设备产物:$missing"; exit 1; }
+
+    - name: Check space usage
+      if: (!cancelled())
+      run: df -hT
+
+    - name: Organize files
+      id: organize
+      if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
+      run: |
+        cd openwrt/bin/targets/*/*
+        rm -rf packages
+        echo "FIRMWARE=$PWD" >> $GITHUB_ENV
+        echo "status=success" >> $GITHUB_OUTPUT
+
+    - name: Generate release tag
+      id: tag
+      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+      run: |
+        echo "release_tag=mt798x-25.12-$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
+        touch release.txt
+        echo "status=success" >> $GITHUB_OUTPUT
+
+    - name: Upload firmware to release
+      uses: softprops/action-gh-release@master
+      if: steps.tag.outputs.status == 'success' && !cancelled()
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.tag.outputs.release_tag }}
+        body_path: release.txt
+        files: |
+          ${{ env.FIRMWARE }}/*sysupgrade*.*
+          ${{ env.FIRMWARE }}/*factory*.*
+          ${{ env.FIRMWARE }}/*recovery*.*
+          ${{ env.FIRMWARE }}/*.itb
+
+    - name: Delete workflow runs
+      uses: Mattraks/delete-workflow-runs@main
+      continue-on-error: true
+      with:
+        retain_days: 0
+        keep_minimum_runs: 2
+
+    - name: Remove old Releases
+      uses: dev-drprasad/delete-older-releases@master
+      continue-on-error: true
+      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+      with:
+        keep_latest: 5
+        delete_tags: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
