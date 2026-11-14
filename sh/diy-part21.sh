@@ -34,7 +34,26 @@ CONFIG_PACKAGE_v2ray-geoip=y
 CONFIG_PACKAGE_v2ray-geosite=y
 CFGEOF
 
-#sed -i 's/--set=llvm\.download-ci-llvm=true/--set=llvm.download-ci-llvm=false/' feeds/packages/lang/rust/Makefile
+# ===== 定制：避免拉入 Rust 工具链 =====
+# geoview / shadowsocks-rust 会触发 rust host 编译，而 rust 1.96 的 ci-llvm 预编译包
+# 在 ci-artifacts.rust-lang.org 上返回 404，直接导致 Compile 阶段失败
+cat >> .config <<'CFGEOF'
+# CONFIG_PACKAGE_geoview is not set
+# CONFIG_PACKAGE_luci-app-passwall_INCLUDE_V2ray_Geoview is not set
+# CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_V2ray_Geoview is not set
+# CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Shadowsocks_Rust_Client is not set
+# CONFIG_PACKAGE_luci-app-passwall2_INCLUDE_Shadowsocks_Rust_Server is not set
+# CONFIG_PACKAGE_shadowsocks-rust-sslocal is not set
+# CONFIG_PACKAGE_shadowsocks-rust-ssserver is not set
+CFGEOF
+
+# rust Makefile 兜底：确保不尝试下载 ci-llvm 预编译包
+RUST_MK=feeds/packages/lang/rust/Makefile
+if [ -f "$RUST_MK" ]; then
+  sed -i 's/llvm\.download-ci-llvm=true/llvm.download-ci-llvm=false/g' "$RUST_MK"
+  grep -q 'llvm.download-ci-llvm=false' "$RUST_MK" || \
+    sed -i 's|^\([[:space:]]*\)--release-channel=stable \\|\1--release-channel=stable \\\n\1--set=llvm.download-ci-llvm=false \\|' "$RUST_MK"
+fi
 
 # ===== 定制：固件默认仅 IPv4 =====
 # 注入 uci-defaults 脚本，首次开机时删除 wan6、关闭 RA/DHCPv6、过滤 AAAA 记录、禁用 odhcpd 自启
